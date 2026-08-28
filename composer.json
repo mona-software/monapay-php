@@ -1,0 +1,21 @@
+{
+  "name": "monapay/php-sdk",
+  "version": "0.1.0",
+  "description": "SDK PHP zero-dependency cho MONA Pay",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=7.4",
+    "ext-curl": "*",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "MonaPay\\": "src/"
+    }
+  },
+  "support": {
+    "docs": "https://monapay.vn/docs",
+    "email": "info@themona.global"
+  }
+}
