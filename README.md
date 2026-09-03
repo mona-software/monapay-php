@@ -67,7 +67,7 @@ echo $qr['qr_data_url'];
 
 Client tự login lại và thử request đúng một lần khi gặp HTTP 401. Các method trả trực tiếp `data`; `ApiException` có `status` và `body`.
 
-Các resource: `$keys`, `$va`, `$bankAccounts`, `$qr`, `$transactions`, `$webhooks`, `$webhookLogs`, `$sandbox`, `$emailConfigs`, `$emailLogs`, `$emailSuppressions`. Ví dụ đọc phân trang:
+Các resource: `$keys`, `$paymentProfile`, `$checkouts`, `$va`, `$bankAccounts`, `$qr`, `$transactions`, `$webhooks`, `$webhookLogs`, `$sandbox`, `$emailConfigs`, `$emailLogs`, `$emailSuppressions`. Ví dụ đọc phân trang:
 
 ```php
 foreach ($mona->iterTransactions('MONA0000010234', 1, 100) as $tx) {
@@ -76,6 +76,18 @@ foreach ($mona->iterTransactions('MONA0000010234', 1, 100) as $tx) {
 
 $mona->transactions->retry($transactionId, 'WEBHOOK', $webhookConfigId);
 ```
+
+## Trang thanh toán (hosted checkout)
+
+```php
+$checkout = $mona->checkouts->create(['amount' => 250000, 'order_code' => 'DH10234', 'return_url' => 'https://shop.vn/payment/return']);
+header('Location: ' . $checkout['checkout_url']);
+if ($event['type'] === 'CHECKOUT_PAID') {
+    fulfillOnce($event['data']['order_code']);
+}
+```
+
+SDK tự sinh `Idempotency-Key` cho `create` và `cancel`; truyền đối số thứ hai khi anh chị cần dùng key riêng. Nguồn sự thật để giao hàng là webhook `CHECKOUT_PAID` hoặc kết quả `get`, không phải redirect trình duyệt.
 
 ## Xác thực webhook
 

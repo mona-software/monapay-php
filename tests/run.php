@@ -69,5 +69,8 @@ check($requests[1]['url'] === 'https://example.test/api/v1/client-webhooks', 'UR
 check($requests[1]['headers']['Authorization'] === 'Bearer token-1', 'Phải gửi Bearer token');
 check($requests[1]['headers']['X-Client-Secret'] === 'client-secret', 'POST phải gửi client secret');
 check(!isset($requests[2]['headers']['X-Client-Secret']), 'GET không gửi client secret');
+$client->checkouts->create(['amount' => 250000], 'checkout-key');
+check($requests[3]['headers']['Idempotency-Key'] === 'checkout-key', 'Create checkout phải gửi Idempotency-Key');
+check($requests[3]['headers']['X-Client-Secret'] === 'client-secret', 'Create checkout phải gửi X-Client-Secret');
 
 fwrite(STDOUT, "OK: $assertions assertions\n");

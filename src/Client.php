@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace MonaPay;
 
 use MonaPay\Resources\BankAccounts;
+use MonaPay\Resources\Checkouts;
 use MonaPay\Resources\EmailConfigs;
 use MonaPay\Resources\EmailLogs;
 use MonaPay\Resources\EmailSuppressions;
 use MonaPay\Resources\Keys;
+use MonaPay\Resources\PaymentProfile;
 use MonaPay\Resources\QrPayments;
 use MonaPay\Resources\Sandbox;
 use MonaPay\Resources\Transactions;
@@ -33,6 +35,8 @@ final class Client
     public Keys $keys;
     public VirtualAccounts $va;
     public BankAccounts $bankAccounts;
+    public PaymentProfile $paymentProfile;
+    public Checkouts $checkouts;
     public QrPayments $qr;
     public Transactions $transactions;
     public Webhooks $webhooks;
@@ -65,6 +69,8 @@ final class Client
         $this->keys = new Keys($this);
         $this->va = new VirtualAccounts($this);
         $this->bankAccounts = new BankAccounts($this);
+        $this->paymentProfile = new PaymentProfile($this);
+        $this->checkouts = new Checkouts($this);
         $this->qr = new QrPayments($this);
         $this->transactions = new Transactions($this);
         $this->webhooks = new Webhooks($this);
@@ -116,16 +122,17 @@ final class Client
     /**
      * @param array<string,mixed>|null $body
      * @param array<string,mixed> $query
+     * @param array<string,string> $headers
      * @return mixed
      */
-    public function request(string $method, string $path, ?array $body = null, array $query = [])
+    public function request(string $method, string $path, ?array $body = null, array $query = [], array $headers = [])
     {
         if ($this->accessToken === null || microtime(true) >= $this->tokenExpiresAt) {
             $this->accessToken = null;
             $this->login();
         }
         try {
-            return $this->send($method, $path, $body, $query, true);
+            return $this->send($method, $path, $body, $query, true, $headers);
         } catch (ApiException $error) {
             if ($error->status !== 401) {
                 throw $error;
@@ -133,7 +140,7 @@ final class Client
             $this->accessToken = null;
             $this->tokenExpiresAt = 0.0;
             $this->login();
-            return $this->send($method, $path, $body, $query, true);
+            return $this->send($method, $path, $body, $query, true, $headers);
         }
     }
 
@@ -162,9 +169,10 @@ final class Client
     /**
      * @param array<string,mixed>|null $body
      * @param array<string,mixed> $query
+     * @param array<string,string> $customHeaders
      * @return mixed
      */
-    private function send(string $method, string $path, ?array $body, array $query, bool $authenticated)
+    private function send(string $method, string $path, ?array $body, array $query, bool $authenticated, array $customHeaders = [])
     {
         $query = array_filter($query, static function ($value): bool {
             return $value !== null;
@@ -181,6 +189,7 @@ final class Client
         if ($authenticated && $method !== 'GET' && $this->clientSecret !== null) {
             $headers['X-Client-Secret'] = $this->clientSecret;
         }
+        $headers = array_merge($headers, $customHeaders);
         $encodedBody = null;
         if ($body !== null) {
             $headers['Content-Type'] = 'application/json';

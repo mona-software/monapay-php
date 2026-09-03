@@ -30,4 +30,20 @@ final class Keys
     {
         return $this->client->request('DELETE', '/api/v1/client-keys/destroy/' . rawurlencode($id));
     }
+
+    /** @param array{password?:string,totp_code?:string} $confirmation @return mixed */
+    public function reveal(string $id, array $confirmation)
+    {
+        return $this->client->request('POST', '/api/v1/client-keys/' . rawurlencode($id) . '/reveal', $confirmation);
+    }
+
+    /** @return mixed */
+    public function rotate(string $id)
+    {
+        $data = $this->client->request('POST', '/api/v1/client-keys/' . rawurlencode($id) . '/rotate', []);
+        if (is_array($data) && !empty($data['client_secret'])) {
+            $this->client->setClientSecret((string) $data['client_secret']);
+        }
+        return $data;
+    }
 }
