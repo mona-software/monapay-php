@@ -1,8 +1,26 @@
 # monapay/php-sdk
 
-MONA Pay là cổng thanh toán và API ngân hàng của The MONA Group, giúp doanh nghiệp Việt Nam nhận và xác nhận tiền chuyển khoản theo thời gian thực qua tài khoản ảo (VA), VietQR, webhook và Telegram — thiết kế để cả lập trình viên lẫn AI agent tích hợp trong vài phút.
+MONA Pay là cổng thanh toán và API ngân hàng của The MONA Group, giúp doanh nghiệp Việt Nam nhận và xác nhận tiền chuyển khoản theo thời gian thực qua tài khoản ảo (VA), VietQR, webhook và Telegram, thiết kế để cả lập trình viên lẫn AI agent tích hợp trong vài phút.
 
 SDK PHP 7.4+, PSR-4, dùng `curl` và không phụ thuộc package bên thứ ba. MONA Pay miễn phí hoàn toàn.
+
+## Xác thực cho AI agent
+
+```bash
+export MONAPAY_CLIENT_ID="client-id"
+export MONAPAY_CLIENT_SECRET="client-secret"
+export MONAPAY_BASE_URL="https://api.monapay.vn"
+```
+
+```php
+$mona = Client::fromEnv();
+$profile = $mona->me();
+$qr = $mona->qr->generate($qrBody);
+$sandbox = $mona->sandbox->createTransaction(['virtual_account_number' => 'MONA123', 'amount' => 10000, 'description' => 'AI test']);
+var_dump($profile);
+```
+
+`Client::fromEnv()` ưu tiên client credentials, cache token tới gần hạn và tự lấy lại khi gặp HTTP 401. Username/password chỉ là fallback tương thích cũ, không dùng cho AI agent vì sẽ gãy khi bật 2FA.
 
 ## Cài đặt
 
@@ -49,7 +67,7 @@ echo $qr['qr_data_url'];
 
 Client tự login lại và thử request đúng một lần khi gặp HTTP 401. Các method trả trực tiếp `data`; `ApiException` có `status` và `body`.
 
-Các resource: `$keys`, `$va`, `$bankAccounts`, `$qr`, `$transactions`, `$webhooks`, `$webhookLogs`. Ví dụ đọc phân trang:
+Các resource: `$keys`, `$va`, `$bankAccounts`, `$qr`, `$transactions`, `$webhooks`, `$webhookLogs`, `$sandbox`, `$emailConfigs`, `$emailLogs`, `$emailSuppressions`. Ví dụ đọc phân trang:
 
 ```php
 foreach ($mona->iterTransactions('MONA0000010234', 1, 100) as $tx) {

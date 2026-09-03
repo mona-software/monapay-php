@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace MonaPay;
 
 use MonaPay\Resources\BankAccounts;
+use MonaPay\Resources\EmailConfigs;
+use MonaPay\Resources\EmailLogs;
+use MonaPay\Resources\EmailSuppressions;
 use MonaPay\Resources\Keys;
 use MonaPay\Resources\QrPayments;
+use MonaPay\Resources\Sandbox;
 use MonaPay\Resources\Transactions;
 use MonaPay\Resources\VirtualAccounts;
 use MonaPay\Resources\WebhookLogs;
@@ -15,10 +19,12 @@ use MonaPay\Resources\Webhooks;
 final class Client
 {
     private string $baseUrl;
+    private ?string $clientId;
     private string $username;
     private string $password;
     private ?string $clientSecret;
     private ?string $accessToken = null;
+    private float $tokenExpiresAt = 0.0;
     private int $timeout;
 
     /** @var callable|null */
@@ -31,6 +37,10 @@ final class Client
     public Transactions $transactions;
     public Webhooks $webhooks;
     public WebhookLogs $webhookLogs;
+    public Sandbox $sandbox;
+    public EmailConfigs $emailConfigs;
+    public EmailLogs $emailLogs;
+    public EmailSuppressions $emailSuppressions;
 
     public function __construct(
         string $username,
@@ -38,11 +48,13 @@ final class Client
         ?string $clientSecret = null,
         string $baseUrl = 'https://api.monapay.vn',
         ?callable $transport = null,
-        int $timeout = 30
+        int $timeout = 30,
+        ?string $clientId = null
     ) {
-        if ($username === '' || $password === '') {
-            throw new \InvalidArgumentException('username và password là bắt buộc');
+        if (($clientId === null || $clientId === '' || $clientSecret === null || $clientSecret === '') && ($username === '' || $password === '')) {
+            throw new \InvalidArgumentException('Cần client ID + client secret hoặc username + password; không dùng password cho AI agent vì sẽ gãy khi bật 2FA');
         }
+        $this->clientId = $clientId;
         $this->username = $username;
         $this->password = $password;
         $this->clientSecret = $clientSecret;
@@ -57,6 +69,31 @@ final class Client
         $this->transactions = new Transactions($this);
         $this->webhooks = new Webhooks($this);
         $this->webhookLogs = new WebhookLogs($this);
+        $this->sandbox = new Sandbox($this);
+        $this->emailConfigs = new EmailConfigs($this);
+        $this->emailLogs = new EmailLogs($this);
+        $this->emailSuppressions = new EmailSuppressions($this);
+    }
+
+    /** @param array<string,string>|null $env */
+    public static function fromEnv(?array $env = null, ?callable $transport = null, int $timeout = 30): self
+    {
+        $read = static function (string $name) use ($env): ?string {
+            if ($env !== null) {
+                return $env[$name] ?? null;
+            }
+            $value = getenv($name);
+            return $value === false ? null : $value;
+        };
+        return new self(
+            $read('MONAPAY_USERNAME') ?? '',
+            $read('MONAPAY_PASSWORD') ?? '',
+            $read('MONAPAY_CLIENT_SECRET'),
+            $read('MONAPAY_BASE_URL') ?? 'https://api.monapay.vn',
+            $transport,
+            $timeout,
+            $read('MONAPAY_CLIENT_ID')
+        );
     }
 
     /** @return mixed */
@@ -83,7 +120,8 @@ final class Client
      */
     public function request(string $method, string $path, ?array $body = null, array $query = [])
     {
-        if ($this->accessToken === null) {
+        if ($this->accessToken === null || microtime(true) >= $this->tokenExpiresAt) {
+            $this->accessToken = null;
             $this->login();
         }
         try {
@@ -93,6 +131,7 @@ final class Client
                 throw $error;
             }
             $this->accessToken = null;
+            $this->tokenExpiresAt = 0.0;
             $this->login();
             return $this->send($method, $path, $body, $query, true);
         }
@@ -100,10 +139,13 @@ final class Client
 
     private function login(): void
     {
+        $usingClientCredentials = $this->clientId !== null && $this->clientId !== '' && $this->clientSecret !== null && $this->clientSecret !== '';
         $data = $this->send(
             'POST',
-            '/api/v1/client/login',
-            ['username' => $this->username, 'password' => $this->password],
+            $usingClientCredentials ? '/api/v1/oauth/token' : '/api/v1/client/login',
+            $usingClientCredentials
+                ? ['grant_type' => 'client_credentials', 'client_id' => $this->clientId, 'client_secret' => $this->clientSecret]
+                : ['username' => $this->username, 'password' => $this->password],
             [],
             false
         );
@@ -111,6 +153,10 @@ final class Client
             throw new ApiException('Response đăng nhập không có access_token');
         }
         $this->accessToken = (string) $data['access_token'];
+        $expiresIn = isset($data['expires_in']) && is_numeric($data['expires_in'])
+            ? (float) $data['expires_in']
+            : ($usingClientCredentials ? 3600.0 : 86400.0);
+        $this->tokenExpiresAt = microtime(true) + max(0.0, $expiresIn - 60.0);
     }
 
     /**

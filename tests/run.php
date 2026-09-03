@@ -53,12 +53,14 @@ check($expired['reason'] === 'timestamp_out_of_tolerance', 'Phải từ chối t
 $requests = [];
 $transport = static function (array $request) use (&$requests): array {
     $requests[] = $request;
-    if (substr($request['url'], -20) === '/api/v1/client/login') {
-        return ['status' => 200, 'body' => ['success' => true, 'data' => ['access_token' => 'token-1']]];
+    if (substr($request['url'], -19) === '/api/v1/oauth/token') {
+        $body = json_decode((string) $request['body'], true);
+        check($body === ['grant_type' => 'client_credentials', 'client_id' => 'client-id', 'client_secret' => 'client-secret'], 'OAuth body phải đúng');
+        return ['status' => 200, 'body' => ['success' => true, 'data' => ['access_token' => 'token-1', 'expires_in' => 3600]]];
     }
     return ['status' => 200, 'body' => ['success' => true, 'data' => ['id' => 'hook-1']]];
 };
-$client = new Client('user', 'pass', 'client-secret', 'https://example.test/', $transport);
+$client = Client::fromEnv(['MONAPAY_CLIENT_ID' => 'client-id', 'MONAPAY_CLIENT_SECRET' => 'client-secret', 'MONAPAY_BASE_URL' => 'https://example.test/'], $transport);
 $client->webhooks->create(['name' => 'Shop', 'webhook_url' => 'https://shop.test/hook']);
 $client->me();
 
