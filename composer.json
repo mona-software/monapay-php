@@ -1,6 +1,6 @@
 {
   "name": "monapay/php-sdk",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "SDK PHP zero-dependency cho MONA Pay",
   "type": "library",
   "license": "MIT",
