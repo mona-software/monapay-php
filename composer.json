@@ -16,6 +16,16 @@
   },
   "support": {
     "docs": "https://monapay.vn/docs",
-    "email": "info@themona.global"
-  }
+    "email": "info@themona.global",
+    "source": "https://github.com/mona-software/monapay-php",
+    "issues": "https://github.com/mona-software/monapay-php/issues"
+  },
+  "homepage": "https://monapay.vn/docs",
+  "authors": [
+    {
+      "name": "MONA Software",
+      "email": "info@themona.global",
+      "homepage": "https://mona.media"
+    }
+  ]
 }

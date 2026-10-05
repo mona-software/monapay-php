@@ -115,3 +115,5 @@ php tests/run.php
 ```
 
 License MIT.
+
+**MONA Pay thuộc bộ MONA Cloud của The MONA Group.**
